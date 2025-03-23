@@ -19,7 +19,7 @@ test_df = pd.read_csv(DATA_PATH_TEST)
 
 survived = train_df['Survived']
 test_ids = test_df['PassengerId']
-train_df = train_df.drop(columns=['PassengerId', 'Survived', 'Name', 'Ticket', 'Cabin', 'Embarked'])
+train_df = train_df.drop(columns=['PassengerId', 'Survived', 'Name', 'Ticket', 'Cabin'])
 test_df = test_df.drop(columns=['PassengerId', 'Name', 'Ticket', 'Cabin'])
 
 def preprocess_data(data, train_columns=None):
@@ -60,7 +60,7 @@ test_features = pd.DataFrame(test_features, columns=train_features.columns)
 class TitanicDataset(Dataset):
     def __init__(self, features, prices=None):
         self.features = torch.tensor(features.values.astype(np.float32), dtype=torch.float32)
-        self.survived = torch.tensor(prices.values, dtype=torch.long).view(-1, 1) if prices is not None else None
+        self.survived = torch.tensor(prices.values, dtype=torch.long) if prices is not None else None
 
     def __len__(self):
         return len(self.features)
@@ -83,13 +83,13 @@ class TitanicModel(nn.Module):
     def __init__(self, input_dim):
         super(TitanicModel, self).__init__()
         self.layers = nn.Sequential(
-            nn.Linear(input_dim, 5),  # Match input to hidden layer
+            nn.Linear(input_dim, 5),
             nn.ReLU(),
             nn.Dropout(0.15),
-            nn.Linear(5, 4),  # No mismatch
+            nn.Linear(5, 4),
             nn.ReLU(),
             nn.Dropout(0.25),
-            nn.Linear(4, 2),  # Match previous layer's output
+            nn.Linear(4, 2),
         )
 
     def forward(self, x):
@@ -99,7 +99,7 @@ input_dim = X_train.shape[1]
 model = TitanicModel(input_dim).to(DEVICE)
 
 
-optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-5)
+optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-5)
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=50, min_lr=1e-6)
 criterion = nn.CrossEntropyLoss()
 
@@ -120,7 +120,7 @@ def train_model(model, train_loader, val_loader, optimizer, scheduler, epochs, d
 
             optimizer.zero_grad()
             predictions = model(features)
-            loss = criterion(predictions.squeeze(), survived)
+            loss = criterion(predictions, survived)
             loss.backward()
             optimizer.step()
             train_losses.append(loss.item())
@@ -138,10 +138,10 @@ def train_model(model, train_loader, val_loader, optimizer, scheduler, epochs, d
                 survived = survived.to(device)
 
                 predictions = model(features)
-                loss = criterion(predictions.squeeze(), survived)
+                loss = criterion(predictions, survived)
                 val_losses.append(loss.item())
-
                 accuracy.extend((torch.argmax(predictions, dim=1) == survived).cpu().numpy())
+
 
             acc = np.mean(accuracy)
 
@@ -165,7 +165,7 @@ def train_model(model, train_loader, val_loader, optimizer, scheduler, epochs, d
 
         # Print progress
         print(f"Epoch {epoch+1}/{epochs} - Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, "
-              f"Val Acc: ${acc:.2f}, LR: {optimizer.param_groups[0]['lr']:.6f}, Best Mae: ${best_acc:.2f}")
+              f"Val Acc: {acc:.2f}, LR: {optimizer.param_groups[0]['lr']:.6f}, Best Acc: {best_acc:.2f}")
 
     # Restore best model
     if best_model_state is not None:
@@ -193,6 +193,6 @@ with torch.no_grad():
         outputs = torch.argmax(outputs, dim=1).cpu().numpy()
         test_predictions.extend(outputs)
 
-submission_df = pd.DataFrame({'Id': test_ids, 'Survived': test_predictions})
+submission_df = pd.DataFrame({'PassengerId': test_ids, 'Survived': test_predictions})
 print(submission_df)
 submission_df.to_csv('submission.csv', index=False)
