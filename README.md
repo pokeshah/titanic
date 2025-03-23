@@ -1,5 +1,5 @@
-# House Price Predictor
-House Price Predictor for Kaggle's Titanic Survival competition
+# Titanic Survival Predictor
+Titanic Survival Predictor for Kaggle's Titanic Survival Competition
 
 ## Implementation
 Uses PyTorch and Deep NN to solve the problem, iterating on the Random Forest Approach. Model Architecture:
